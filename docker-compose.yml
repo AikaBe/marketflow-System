@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  load_images:
+    image: docker:20.10.16-dind
+    privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./tar_files:/tar_files
+      - ./load_images.sh:/load_images.sh
+    entrypoint: sh /load_images.sh
+
+  marketflow:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./configs:/app/configs
+    environment:
+      - CONFIG_PATH=/app/configs/config.yaml
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: marketdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  exchange1:
+    image: exchange1-arm64
+    ports:
+      - "40101:40101"
+
+  exchange2:
+    image: exchange2-arm64
+    ports:
+      - "40102:40102"
+
+  exchange3:
+    image: exchange3-arm64
+    ports:
+      - "40103:40103"
+
+volumes:
+  postgres_data:
+  redis_data:

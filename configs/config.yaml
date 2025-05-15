@@ -1,0 +1,24 @@
+postgres:
+  host: postgres
+  port: 5432
+  user: market
+  password: secret
+  dbname: marketdb
+
+redis:
+  host: redis
+  port: 6379
+  password: ""
+
+exchanges:
+  - name: exchange1
+    host: exchange1
+    port: 40101
+  - name: exchange2
+    host: exchange2
+    port: 40102
+  - name: exchange3
+    host: exchange3
+    port: 40103
+
+mode: live
