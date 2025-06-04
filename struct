@@ -1,0 +1,9 @@
+internal/
+└── adapters/
+    └── websocket/
+        ├── interface.go        
+        ├── helpers/
+        │   └── helpers.go     
+        ├── impl/
+        │   ├── binance.go 
+        │   └── bybit.go   
