@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"marketflow/internal/adapters/postgres"
+	"marketflow/internal/adapters/redis"
 	"marketflow/internal/adapters/websocket/impl"
 	"marketflow/internal/usecase"
 	"os"
@@ -28,6 +29,12 @@ func main() {
 		}
 	}()
 	fmt.Println("Successfully connected to PostgreSQL")
+
+	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
+	if err := redisAdapter.Set(ctx, "health", "ok"); err != nil {
+		log.Fatalf("Redis error: %v", err)
+	}
+	fmt.Println("Successfully connected to Redis")
 
 	binance := impl.NewBinanceAdapter()
 	bybit := impl.NewBybitAdapter()
