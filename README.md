@@ -1,18 +1,3 @@
-    hello
-
-    Что бы все открылось сначало нужно написать вот так:
-
-    chmod +x load_images.sh
-
-    потом вот так:
-
-    docker-compose up load_images
-
-    и только потом так:
-
-     docker-compose up
-
-     хай, мой варик:
 
 # 1. Перейти в корень проекта (где docker-compose.yml)
 cd marketflow

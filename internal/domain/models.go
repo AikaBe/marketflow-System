@@ -11,7 +11,6 @@ type MarketData struct {
 }
 
 type AggregatedMarketData struct {
-	ID           int64     `db:"id"`
 	PairName     string    `db:"pair_name"`
 	Exchange     string    `db:"exchange"`
 	Timestamp    time.Time `db:"timestamp"`
