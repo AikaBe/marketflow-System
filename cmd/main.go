@@ -16,12 +16,16 @@ func main() {
 	binance := impl.NewBinanceAdapter()
 	bybit := impl.NewBybitAdapter()
 
+	fmt.Println("Binance and Bybit adapters created")
+
 	service := usecase.NewMarketDataService(
 		binance,
 		bybit,
 	)
 
 	dataChan := service.Start(ctx)
+
+	fmt.Println("Market data service started")
 
 	go func() {
 		for data := range dataChan {
@@ -31,6 +35,7 @@ func main() {
 	}()
 
 	<-ctx.Done()
+	fmt.Println("Stopping market data service...")
 	service.Stop()
 	fmt.Println("Graceful shutdown")
 }

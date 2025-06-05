@@ -6,8 +6,8 @@ services:
     privileged: true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./tar_files:/tar_files
-      - ./load_images.sh:/load_images.sh
+      - ./docker/tar_files:/tar_files
+      - ./docker/load_images.sh:/load_images.sh
     entrypoint: sh /load_images.sh
 
   marketflow:
@@ -43,17 +43,23 @@ services:
       - redis_data:/data
 
   exchange1:
-    image: exchange1-arm64
+    image: exchange1
+    depends_on:
+      - load_images
     ports:
       - "40101:40101"
 
   exchange2:
-    image: exchange2-arm64
+    image: exchange2
+    depends_on:
+      - load_images
     ports:
       - "40102:40102"
 
   exchange3:
-    image: exchange3-arm64
+    image: exchange3
+    depends_on:
+      - load_images
     ports:
       - "40103:40103"
 
