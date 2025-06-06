@@ -7,7 +7,7 @@ import (
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
 	"marketflow/internal/adapters/websocket/impl"
-	"marketflow/internal/usecase"
+	"marketflow/internal/app"
 	"os"
 	"os/signal"
 
@@ -41,7 +41,7 @@ func main() {
 
 	fmt.Println("Binance and Bybit adapters created")
 
-	service := usecase.NewMarketDataService(
+	service := app.NewMarketDataService(
 		binance,
 		bybit,
 	)

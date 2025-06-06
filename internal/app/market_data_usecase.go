@@ -1,4 +1,5 @@
-package usecase
+// internal/app/market_data_usecase.go
+package app
 
 import (
 	"context"

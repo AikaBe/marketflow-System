@@ -1,19 +1,19 @@
-// internal/adapters/websocket/impl/binance_adapter.go
 package impl
 
 import (
-	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"marketflow/internal/adapters/websocket/impl/helpers"
 	"marketflow/internal/domain"
 	"net/url"
+	"strconv"
 	"sync"
+	"time"
 )
 
 const (
-	binanceHost = "stream.binance.com:443"
+	binanceHost = "stream.binance.com:9443"
 	binancePath = "/ws/btcusdt@trade"
 )
 
@@ -29,83 +29,52 @@ func NewBinanceAdapter() *BinanceAdapter {
 	}
 }
 
-// Start устанавливает соединение и начинает читать данные, отправляя их в out канал.
 func (b *BinanceAdapter) Start(out chan<- domain.MarketData) error {
-	u := url.URL{Scheme: "wss", Host: binanceHost, Path: binancePath}
-	fmt.Println("Connecting to", u.String())
-
-	conn, err := tls.Dial("tcp", binanceHost, nil)
-	if err != nil {
-		return fmt.Errorf("failed to connect: %w", err)
-	}
-	b.conn = conn
-
-	req := bytes.NewBufferString(fmt.Sprintf(
-		"GET %s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: 123456==\r\n\r\n",
-		binancePath, "stream.binance.com",
-	))
-
-	_, err = conn.Write(req.Bytes())
-	if err != nil {
-		return fmt.Errorf("handshake write error: %w", err)
-	}
-
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
-	if err != nil {
-		return fmt.Errorf("handshake read error: %w", err)
-	}
-	if !bytes.Contains(buf[:n], []byte("101 Switching Protocols")) {
-		return fmt.Errorf("unexpected handshake response:\n%s", buf[:n])
-	}
-
 	b.wg.Add(1)
+
 	go func() {
 		defer b.wg.Done()
-		defer conn.Close()
 
 		for {
 			select {
 			case <-b.stopCh:
 				return
 			default:
-				frame, err := helpers.ReadFrame(conn)
-				if err != nil {
-					fmt.Println("read frame error:", err)
-					return
-				}
-
-				var msg struct {
-					Price     string `json:"p"`
-					Quantity  string `json:"q"`
-					EventTime int64  `json:"E"`
-					Symbol    string `json:"s"`
-				}
-
-				if err := json.Unmarshal(frame, &msg); err != nil {
-					continue
-				}
-
-				price, _ := helpers.ParseFloat(msg.Price)
-				volume, _ := helpers.ParseFloat(msg.Quantity)
-
-				data := domain.MarketData{
-					Exchange: "binance",
-					Symbol:   msg.Symbol,
-					Price:    price,
-					Volume:   volume,
-					Time:     msg.EventTime,
-				}
-
-				out <- data
 			}
+
+			fmt.Println("[binance] connecting...")
+			u := url.URL{Scheme: "wss", Host: binanceHost, Path: binancePath}
+			conn, err := helpers.ConnectAndHandshake(u, "stream.binance.com")
+			if err != nil {
+				fmt.Println("[binance] connection error:", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			b.conn = conn
+
+			var innerWg sync.WaitGroup
+			innerWg.Add(2)
+
+			go func() {
+				defer innerWg.Done()
+				b.readLoop(out)
+			}()
+
+			go func() {
+				defer innerWg.Done()
+				b.pingLoop()
+			}()
+
+			// Ждём, пока read или ping завершится (в случае ошибки)
+			innerWg.Wait()
+			fmt.Println("[binance] reconnecting in 5 seconds...")
+			time.Sleep(5 * time.Second)
 		}
 	}()
 
 	return nil
 }
 
-// Stop закрывает соединение и ждёт завершения горутины.
 func (b *BinanceAdapter) Stop() error {
 	close(b.stopCh)
 	b.wg.Wait()
@@ -113,4 +82,74 @@ func (b *BinanceAdapter) Stop() error {
 		return b.conn.Close()
 	}
 	return nil
+}
+
+func (b *BinanceAdapter) readLoop(out chan<- domain.MarketData) {
+	for {
+		select {
+		case <-b.stopCh:
+			return
+		default:
+			opcode, frame, err := helpers.ReadFrame(b.conn)
+			if err != nil {
+				fmt.Println("[binance] read error:", err)
+				return
+			}
+			if opcode == 0xA {
+				fmt.Println("[binance] pong received")
+				continue
+			}
+			if opcode != 0x1 {
+				continue
+			}
+
+			var msg struct {
+				Price     string `json:"p"`
+				Quantity  string `json:"q"`
+				Timestamp int64  `json:"T"`
+			}
+			if err := json.Unmarshal(frame, &msg); err != nil {
+				fmt.Println("[binance] unmarshal error:", err)
+				continue
+			}
+
+			price, err := strconv.ParseFloat(msg.Price, 64)
+			if err != nil {
+				fmt.Println("[binance] price parse error:", err)
+				continue
+			}
+			volume, err := strconv.ParseFloat(msg.Quantity, 64)
+			if err != nil {
+				fmt.Println("[binance] volume parse error:", err)
+				continue
+			}
+
+			out <- domain.MarketData{
+				Exchange: "binance",
+				Symbol:   "BTCUSDT",
+				Price:    price,
+				Volume:   volume,
+				Time:     msg.Timestamp,
+			}
+		}
+	}
+}
+
+func (b *BinanceAdapter) pingLoop() {
+	ticker := time.NewTicker(20 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-b.stopCh:
+			return
+		case <-ticker.C:
+			err := helpers.WritePingFrame(b.conn)
+			if err != nil {
+				fmt.Println("[binance] ping write error:", err)
+				return // это завершит pingLoop и вызовет reconnect
+			}
+			fmt.Println("[binance] ping sent")
+		}
+	}
 }
