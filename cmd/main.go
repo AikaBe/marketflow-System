@@ -36,13 +36,11 @@ func main() {
 	}
 	fmt.Println("Successfully connected to Redis")
 
-	binance := impl.NewBinanceAdapter()
 	bybit := impl.NewBybitAdapter()
 
 	fmt.Println("Binance and Bybit adapters created")
 
 	service := app.NewMarketDataService(
-		binance,
 		bybit,
 	)
 

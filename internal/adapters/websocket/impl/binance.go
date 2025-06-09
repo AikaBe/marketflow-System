@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"marketflow/internal/adapters/websocket/impl/helpers"
 	"marketflow/internal/domain"
+	"net"
 	"net/url"
 	"strconv"
 	"sync"
@@ -144,7 +145,7 @@ func (b *BinanceAdapter) pingLoop() {
 		case <-b.stopCh:
 			return
 		case <-ticker.C:
-			err := helpers.WritePingFrame(b.conn)
+			err := writePingFrame(b.conn)
 			if err != nil {
 				fmt.Println("[binance] ping write error:", err)
 				return // это завершит pingLoop и вызовет reconnect
@@ -152,4 +153,14 @@ func (b *BinanceAdapter) pingLoop() {
 			fmt.Println("[binance] ping sent")
 		}
 	}
+}
+
+func writePingFrame(conn net.Conn) error {
+	// Frame формат: fin=1, opcode=0x9 (ping), no mask, no payload
+	frame := []byte{0x89, 0x00}
+	_, err := conn.Write(frame)
+	if err != nil {
+		return fmt.Errorf("WritePingFrame error: %w", err)
+	}
+	return nil
 }
