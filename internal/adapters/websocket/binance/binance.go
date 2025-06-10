@@ -1,10 +1,14 @@
-package impl
+package binance
 
 import (
+	"bytes"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"marketflow/internal/adapters/websocket/impl/helpers"
+	"io"
 	"marketflow/internal/domain"
 	"net"
 	"net/url"
@@ -45,7 +49,7 @@ func (b *BinanceAdapter) Start(out chan<- domain.MarketData) error {
 
 			fmt.Println("[binance] connecting...")
 			u := url.URL{Scheme: "wss", Host: binanceHost, Path: binancePath}
-			conn, err := helpers.ConnectAndHandshake(u, "stream.binance.com")
+			conn, err := connectAndHandshake(u, "stream.binance.com")
 			if err != nil {
 				fmt.Println("[binance] connection error:", err)
 				time.Sleep(5 * time.Second)
@@ -66,7 +70,6 @@ func (b *BinanceAdapter) Start(out chan<- domain.MarketData) error {
 				b.pingLoop()
 			}()
 
-			// Ждём, пока read или ping завершится (в случае ошибки)
 			innerWg.Wait()
 			fmt.Println("[binance] reconnecting in 5 seconds...")
 			time.Sleep(5 * time.Second)
@@ -91,7 +94,7 @@ func (b *BinanceAdapter) readLoop(out chan<- domain.MarketData) {
 		case <-b.stopCh:
 			return
 		default:
-			opcode, frame, err := helpers.ReadFrame(b.conn)
+			opcode, frame, err := readFrameBinance(b.conn)
 			if err != nil {
 				fmt.Println("[binance] read error:", err)
 				return
@@ -148,19 +151,123 @@ func (b *BinanceAdapter) pingLoop() {
 			err := writePingFrame(b.conn)
 			if err != nil {
 				fmt.Println("[binance] ping write error:", err)
-				return // это завершит pingLoop и вызовет reconnect
+				return
 			}
 			fmt.Println("[binance] ping sent")
 		}
 	}
 }
 
+// --- Вспомогательные функции ---
+
+func connectAndHandshake(u url.URL, host string) (*tls.Conn, error) {
+	conf := &tls.Config{ServerName: host}
+	conn, err := tls.Dial("tcp", u.Host, conf)
+	if err != nil {
+		return nil, fmt.Errorf("TLS dial failed: %w", err)
+	}
+
+	secKey := generateWebSocketKey()
+
+	req := fmt.Sprintf(
+		"GET %s HTTP/1.1\r\n"+
+			"Host: %s\r\n"+
+			"Upgrade: websocket\r\n"+
+			"Connection: Upgrade\r\n"+
+			"Sec-WebSocket-Version: 13\r\n"+
+			"Sec-WebSocket-Key: %s\r\n\r\n",
+		u.Path, host, secKey,
+	)
+
+	_, err = conn.Write([]byte(req))
+	if err != nil {
+		return nil, fmt.Errorf("handshake write failed: %w", err)
+	}
+
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, fmt.Errorf("handshake read failed: %w", err)
+	}
+	if !bytes.Contains(buf[:n], []byte("101 Switching Protocols")) {
+		return nil, fmt.Errorf("unexpected handshake response: %s", buf[:n])
+	}
+
+	return conn, nil
+}
+
+func readFrameBinance(r io.Reader) (opcode byte, payload []byte, err error) {
+	header := make([]byte, 2)
+	if _, err = io.ReadFull(r, header); err != nil {
+		return 0, nil, fmt.Errorf("read header: %w", err)
+	}
+
+	fin := header[0]&0x80 != 0
+	opcode = header[0] & 0x0F
+	masked := header[1]&0x80 != 0
+	payloadLen := int(header[1] & 0x7F)
+
+	if !fin {
+		return 0, nil, fmt.Errorf("fragmented frames not supported")
+	}
+
+	switch payloadLen {
+	case 126:
+		ext := make([]byte, 2)
+		if _, err = io.ReadFull(r, ext); err != nil {
+			return 0, nil, fmt.Errorf("read extended payload (126): %w", err)
+		}
+		payloadLen = int(binary.BigEndian.Uint16(ext))
+	case 127:
+		ext := make([]byte, 8)
+		if _, err = io.ReadFull(r, ext); err != nil {
+			return 0, nil, fmt.Errorf("read extended payload (127): %w", err)
+		}
+		payloadLen = int(binary.BigEndian.Uint64(ext))
+	}
+
+	var maskKey []byte
+	if masked {
+		maskKey = make([]byte, 4)
+		if _, err = io.ReadFull(r, maskKey); err != nil {
+			return 0, nil, fmt.Errorf("read mask key: %w", err)
+		}
+	}
+
+	payload = make([]byte, payloadLen)
+	if _, err = io.ReadFull(r, payload); err != nil {
+		return 0, nil, fmt.Errorf("read payload: %w", err)
+	}
+
+	if masked {
+		for i := 0; i < payloadLen; i++ {
+			payload[i] ^= maskKey[i%4]
+		}
+	}
+
+	switch opcode {
+	case 0x1: // text
+		return opcode, payload, nil
+	case 0x8: // close
+		return opcode, nil, io.EOF
+	case 0x9, 0xA: // ping/pong
+		return opcode, nil, nil
+	default:
+		return opcode, nil, fmt.Errorf("unsupported opcode: %d", opcode)
+	}
+}
+
 func writePingFrame(conn net.Conn) error {
-	// Frame формат: fin=1, opcode=0x9 (ping), no mask, no payload
 	frame := []byte{0x89, 0x00}
 	_, err := conn.Write(frame)
 	if err != nil {
 		return fmt.Errorf("WritePingFrame error: %w", err)
 	}
 	return nil
+}
+
+func generateWebSocketKey() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
 }

@@ -6,7 +6,7 @@ import (
 	"log"
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
-	"marketflow/internal/adapters/websocket/impl"
+	"marketflow/internal/adapters/websocket/bybit"
 	"marketflow/internal/app"
 	"os"
 	"os/signal"
@@ -36,12 +36,14 @@ func main() {
 	}
 	fmt.Println("Successfully connected to Redis")
 
-	bybit := impl.NewBybitAdapter()
+	bybit := bybit.NewBybitAdapter()
+	// binance := impl.NewBinanceAdapter()
 
 	fmt.Println("Binance and Bybit adapters created")
 
 	service := app.NewMarketDataService(
 		bybit,
+		// binance,
 	)
 
 	dataChan := service.Start(ctx)
