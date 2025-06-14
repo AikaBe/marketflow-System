@@ -6,10 +6,10 @@ import (
 	"log"
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
-	"marketflow/internal/adapters/websocket/bybit"
-	"marketflow/internal/app"
+	"marketflow/internal/adapters/websocket/tar_files"
 	"os"
 	"os/signal"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -36,29 +36,35 @@ func main() {
 	}
 	fmt.Println("Successfully connected to Redis")
 
-	bybit := bybit.NewBybitAdapter()
-	// binance := impl.NewBinanceAdapter()
+	// // bybit := bybit.NewBybitAdapter()
+	// binance := binance.NewBinanceAdapter()
 
-	fmt.Println("Binance and Bybit adapters created")
+	// fmt.Println("Binance and Bybit adapters created")
 
-	service := app.NewMarketDataService(
-		bybit,
-		// binance,
-	)
+	// service := app.NewMarketDataService(
+	// 	// bybit,
+	// 	binance,
+	// )
 
-	dataChan := service.Start(ctx)
+	// dataChan := service.Start(ctx)
 
-	fmt.Println("Market data service started")
+	// fmt.Println("Market data service started")
 
-	go func() {
-		for data := range dataChan {
-			fmt.Printf("[%s] %s: %.2f (%.2f) at %d\n",
-				data.Exchange, data.Symbol, data.Price, data.Volume, data.Time)
-		}
-	}()
+	// go func() {
+	// 	for data := range dataChan {
+	// 		fmt.Printf("[%s] %s: %.2f (%.2f) at %d\n",
+	// 			data.Exchange, data.Symbol, data.Price, data.Volume, data.Time)
+	// 	}
+	// }()
 
-	<-ctx.Done()
-	fmt.Println("Stopping market data service...")
-	service.Stop()
-	fmt.Println("Graceful shutdown")
+	// <-ctx.Done()
+	// fmt.Println("Stopping market data service...")
+	// service.Stop()
+	// fmt.Println("Graceful shutdown")
+	tar_files.StartReaders()
+
+	// Блокируем main-поток, чтобы не выйти сразу
+	for {
+		time.Sleep(10 * time.Second)
+	}
 }
