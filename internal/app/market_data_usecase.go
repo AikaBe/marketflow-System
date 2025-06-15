@@ -1,47 +1,84 @@
-// internal/app/market_data_usecase.go
 package app
 
 import (
 	"context"
-	"marketflow/internal/adapters/websocket"
+	"fmt"
+	"marketflow/internal/adapters/postgres"
+	"marketflow/internal/adapters/redis"
 	"marketflow/internal/domain"
-	"sync"
+	"strconv"
+	"strings"
+	"time"
 )
 
-type MarketDataService struct {
-	providers []websocket.MarketDataProvider
-	out       chan domain.MarketData
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
-}
-
-func NewMarketDataService(providers ...websocket.MarketDataProvider) *MarketDataService {
-	return &MarketDataService{
-		providers: providers,
-		out:       make(chan domain.MarketData),
+func StartRedisWorkerPool(ctx context.Context, redisAdapter *redis.Adapter, input <-chan domain.PriceUpdate, workers int) {
+	for i := 0; i < workers; i++ {
+		go func(id int) {
+			for update := range input {
+				key := fmt.Sprintf("price:%s:%s", update.Symbol, update.Exchange)
+				value := fmt.Sprintf("%f:%d", update.Price, update.Timestamp)
+				redisAdapter.AppendToList(ctx, key, value)
+			}
+		}(i)
 	}
 }
 
-func (m *MarketDataService) Start(ctx context.Context) <-chan domain.MarketData {
-	ctx, cancel := context.WithCancel(ctx)
-	m.cancel = cancel
+func StartAggregator(ctx context.Context, redisAdapter *redis.Adapter, pgAdapter *postgres.Adapter) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
 
-	for _, provider := range m.providers {
-		m.wg.Add(1)
-		go func(p websocket.MarketDataProvider) {
-			defer m.wg.Done()
-			p.Start(m.out)
-		}(provider)
+	pairs := []string{"BTCUSDT", "ETHUSDT", "DOGEUSDT", "TONUSDT", "SOLUSDT"}
+	exchanges := []string{"Exchange1", "Exchange2", "Exchange3"}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for _, pair := range pairs {
+				for _, ex := range exchanges {
+					key := fmt.Sprintf("price:%s:%s", pair, ex)
+					values, err := redisAdapter.GetLastN(ctx, key, 60)
+					if err != nil || len(values) == 0 {
+						continue
+					}
+					var prices []float64
+					for _, v := range values {
+						parts := strings.Split(v, ":")
+						if len(parts) != 2 {
+							continue
+						}
+						price, err := strconv.ParseFloat(parts[0], 64)
+						if err == nil {
+							prices = append(prices, price)
+						}
+					}
+					if len(prices) == 0 {
+						continue
+					}
+					min, max, avg := calcStats(prices)
+					pgAdapter.SaveAggregatedPrice(ctx, pair, ex, time.Now(), avg, min, max)
+				}
+			}
+		}
 	}
-
-	return m.out
 }
 
-func (m *MarketDataService) Stop() {
-	for _, p := range m.providers {
-		_ = p.Stop()
+func calcStats(prices []float64) (min, max, avg float64) {
+	if len(prices) == 0 {
+		return 0, 0, 0
 	}
-	m.cancel()
-	m.wg.Wait()
-	close(m.out)
+	min, max = prices[0], prices[0]
+	sum := 0.0
+	for _, p := range prices {
+		sum += p
+		if p < min {
+			min = p
+		}
+		if p > max {
+			max = p
+		}
+	}
+	avg = sum / float64(len(prices))
+	return
 }

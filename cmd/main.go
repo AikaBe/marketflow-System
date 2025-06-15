@@ -7,64 +7,44 @@ import (
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
 	"marketflow/internal/adapters/websocket/tar_files"
+	"marketflow/internal/app"
+	"marketflow/internal/domain"
+	"marketflow/internal/handlers"
+	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
 	connStr := "host=postgres port=5432 user=market password=secret dbname=marketdb sslmode=disable"
 	pgAdapter, err := postgres.NewPostgresAdapter(connStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to DB: %v", err)
+		log.Fatalf("Postgres error: %v", err)
 	}
-	defer func() {
-		if err := pgAdapter.Close(); err != nil {
-			log.Printf("Failed to close DB: %v", err)
-		}
-	}()
-	fmt.Println("Successfully connected to PostgreSQL")
+	defer pgAdapter.Close()
 
 	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
-	if err := redisAdapter.Set(ctx, "health", "ok"); err != nil {
-		log.Fatalf("Redis error: %v", err)
-	}
-	fmt.Println("Successfully connected to Redis")
 
-	// // bybit := bybit.NewBybitAdapter()
-	// binance := binance.NewBinanceAdapter()
+	updates := make(chan domain.PriceUpdate, 1000)
+	tar_files.StartReaders(updates)
 
-	// fmt.Println("Binance and Bybit adapters created")
+	app.StartRedisWorkerPool(ctx, redisAdapter, updates, 5)
+	go app.StartAggregator(ctx, redisAdapter, pgAdapter)
 
-	// service := app.NewMarketDataService(
-	// 	// bybit,
-	// 	binance,
-	// )
+	// HTTP API
+	handler := &handlers.AggregatedHandler{PG: pgAdapter}
+	http.Handle("/aggregated", handler)
+	go func() {
+		log.Println("Starting HTTP server on :8080")
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	}()
 
-	// dataChan := service.Start(ctx)
-
-	// fmt.Println("Market data service started")
-
-	// go func() {
-	// 	for data := range dataChan {
-	// 		fmt.Printf("[%s] %s: %.2f (%.2f) at %d\n",
-	// 			data.Exchange, data.Symbol, data.Price, data.Volume, data.Time)
-	// 	}
-	// }()
-
-	// <-ctx.Done()
-	// fmt.Println("Stopping market data service...")
-	// service.Stop()
-	// fmt.Println("Graceful shutdown")
-	tar_files.StartReaders()
-
-	// Блокируем main-поток, чтобы не выйти сразу
-	for {
-		time.Sleep(10 * time.Second)
-	}
+	fmt.Println("Service is running...")
+	<-ctx.Done()
+	fmt.Println("Shutting down...")
 }
