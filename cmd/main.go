@@ -45,7 +45,7 @@ func main() {
 
 	handler := &handlers.AggregatedHandler{Service: aggregatedPriceService}
 
-	http.HandleFunc("/prices/latest/", handler.HandleLatestPrice)
+	http.HandleFunc("/prices/latest/", handler.Handle)
 
 	go func() {
 		log.Println("Starting HTTP server on :8080")
