@@ -2,29 +2,24 @@ package handlers
 
 import (
 	"encoding/json"
-	"marketflow/internal/adapters/postgres"
+	"marketflow/internal/app"
 	"net/http"
+	"strings"
 )
 
 type AggregatedHandler struct {
-	PG *postgres.Adapter
+	Service *app.Latest
 }
 
-type AggregatedResponse struct {
-	Pair      string  `json:"pair"`
-	Exchange  string  `json:"exchange"`
-	Timestamp string  `json:"timestamp"`
-	Avg       float64 `json:"avg"`
-	Min       float64 `json:"min"`
-	Max       float64 `json:"max"`
-}
+func (h *AggregatedHandler) HandleLatestPrice(w http.ResponseWriter, r *http.Request) {
+	symbol := strings.TrimPrefix(r.URL.Path, "/prices/latest/")
 
-func (h *AggregatedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	data, err := h.PG.GetLastAggregatedPrices()
+	data, err := h.Service.GetAggregatedPriceForSymbol(symbol)
 	if err != nil {
-		http.Error(w, "Error fetching data", http.StatusInternalServerError)
+		http.Error(w, "Error fetching data for symbol", http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)
 }

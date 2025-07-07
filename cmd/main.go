@@ -7,7 +7,7 @@ import (
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
 	"marketflow/internal/adapters/websocket/tar_files"
-	"marketflow/internal/app"
+	"marketflow/internal/app/impl"
 	"marketflow/internal/domain"
 	"marketflow/internal/handlers"
 	"net/http"
@@ -33,12 +33,20 @@ func main() {
 	updates := make(chan domain.PriceUpdate, 1000)
 	tar_files.StartReaders(updates)
 
-	app.StartRedisWorkerPool(ctx, redisAdapter, updates, 5)
-	go app.StartAggregator(ctx, redisAdapter, pgAdapter)
+	service := &impl.ServiceCom{}
+
+	service.StartRedisWorkerPool(ctx, redisAdapter, updates, 5)
+	go service.StartAggregator(ctx, redisAdapter, pgAdapter)
 
 	// HTTP API
-	handler := &handlers.AggregatedHandler{PG: pgAdapter}
-	http.Handle("/aggregated", handler)
+	aggregatedPriceService := &impl.LatestService{
+		Repo: pgAdapter,
+	}
+
+	handler := &handlers.AggregatedHandler{Service: aggregatedPriceService}
+
+	http.HandleFunc("/prices/latest/", handler.HandleLatestPrice)
+
 	go func() {
 		log.Println("Starting HTTP server on :8080")
 		log.Fatal(http.ListenAndServe(":8080", nil))

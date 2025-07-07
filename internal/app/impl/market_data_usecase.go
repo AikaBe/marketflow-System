@@ -1,4 +1,4 @@
-package app
+package impl
 
 import (
 	"context"
@@ -11,7 +11,9 @@ import (
 	"time"
 )
 
-func StartRedisWorkerPool(ctx context.Context, redisAdapter *redis.Adapter, input <-chan domain.PriceUpdate, workers int) {
+type ServiceCom struct{}
+
+func (ls *ServiceCom) StartRedisWorkerPool(ctx context.Context, redisAdapter *redis.Adapter, input <-chan domain.PriceUpdate, workers int) {
 	for i := 0; i < workers; i++ {
 		go func(id int) {
 			for update := range input {
@@ -23,7 +25,7 @@ func StartRedisWorkerPool(ctx context.Context, redisAdapter *redis.Adapter, inpu
 	}
 }
 
-func StartAggregator(ctx context.Context, redisAdapter *redis.Adapter, pgAdapter *postgres.Adapter) {
+func (ls *ServiceCom) StartAggregator(ctx context.Context, redisAdapter *redis.Adapter, pgAdapter *postgres.Adapter) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
