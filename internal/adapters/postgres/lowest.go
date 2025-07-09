@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-func (a *ApiAdapter) GetHighestBySymbol(symbol string) (*domain.AggregatedResponse, error) {
-	slog.Info("Querying highest price by symbol", "symbol", symbol)
+func (a *ApiAdapter) GetLowestBySymbol(symbol string) (*domain.AggregatedResponse, error) {
+	slog.Info("Querying lowest price by symbol", "symbol", symbol)
 
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
 		WHERE pair_name = $1
-		ORDER BY average_price DESC
+		ORDER BY average_price ASC
 		LIMIT 1
 	`, symbol)
 
@@ -25,14 +25,14 @@ func (a *ApiAdapter) GetHighestBySymbol(symbol string) (*domain.AggregatedRespon
 	err := row.Scan(&pair, &exchange, &ts, &avg, &min, &max)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			slog.Warn("No highest price found for symbol", "symbol", symbol)
+			slog.Warn("No lowest price found for symbol", "symbol", symbol)
 			return nil, nil
 		}
-		slog.Error("Failed to scan highest price", "symbol", symbol, "err", err)
+		slog.Error("Failed to scan lowest price by symbol", "symbol", symbol, "err", err)
 		return nil, err
 	}
 
-	slog.Info("Highest price retrieved", "symbol", symbol, "avg", avg)
+	slog.Info("Lowest price retrieved", "symbol", symbol, "avg", avg)
 	return &domain.AggregatedResponse{
 		Pair:      pair,
 		Exchange:  exchange,
@@ -43,14 +43,14 @@ func (a *ApiAdapter) GetHighestBySymbol(symbol string) (*domain.AggregatedRespon
 	}, nil
 }
 
-func (a *ApiAdapter) GetHighestByExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
-	slog.Info("Querying highest price by exchange and symbol", "exchange", exchange, "symbol", symbol)
+func (a *ApiAdapter) GetLowestByExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
+	slog.Info("Querying lowest price by exchange and symbol", "exchange", exchange, "symbol", symbol)
 
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
 		WHERE pair_name = $1 AND exchange = $2
-		ORDER BY average_price DESC
+		ORDER BY average_price ASC
 		LIMIT 1
 	`, symbol, exchange)
 
@@ -61,14 +61,14 @@ func (a *ApiAdapter) GetHighestByExchange(exchange, symbol string) (*domain.Aggr
 	err := row.Scan(&pair, &exchange, &ts, &avg, &min, &max)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			slog.Warn("No highest price found for exchange and symbol", "exchange", exchange, "symbol", symbol)
+			slog.Warn("No lowest price found for exchange and symbol", "exchange", exchange, "symbol", symbol)
 			return nil, nil
 		}
-		slog.Error("Failed to scan highest price", "exchange", exchange, "symbol", symbol, "err", err)
+		slog.Error("Failed to scan lowest price by exchange", "exchange", exchange, "symbol", symbol, "err", err)
 		return nil, err
 	}
 
-	slog.Info("Highest price retrieved", "exchange", exchange, "symbol", symbol, "avg", avg)
+	slog.Info("Lowest price retrieved", "exchange", exchange, "symbol", symbol, "avg", avg)
 	return &domain.AggregatedResponse{
 		Pair:      pair,
 		Exchange:  exchange,
@@ -79,14 +79,14 @@ func (a *ApiAdapter) GetHighestByExchange(exchange, symbol string) (*domain.Aggr
 	}, nil
 }
 
-func (a *ApiAdapter) QueryHighestPriceSince(symbol string, since time.Time) (*domain.AggregatedResponse, error) {
-	slog.Info("Querying highest price by symbol since time", "symbol", symbol, "since", since.Format(time.RFC3339))
+func (a *ApiAdapter) QueryLowestPriceSince(symbol string, since time.Time) (*domain.AggregatedResponse, error) {
+	slog.Info("Querying lowest price by symbol since time", "symbol", symbol, "since", since)
 
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
 		WHERE pair_name = $1 AND timestamp >= $2
-		ORDER BY average_price DESC
+		ORDER BY average_price ASC
 		LIMIT 1
 	`, symbol, since)
 
@@ -97,14 +97,14 @@ func (a *ApiAdapter) QueryHighestPriceSince(symbol string, since time.Time) (*do
 	err := row.Scan(&pair, &exchange, &ts, &avg, &min, &max)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			slog.Warn("No highest price found for symbol in time range", "symbol", symbol, "since", since)
+			slog.Warn("No lowest price found for symbol in period", "symbol", symbol, "since", since)
 			return nil, nil
 		}
-		slog.Error("Failed to scan highest price", "symbol", symbol, "since", since, "err", err)
+		slog.Error("Failed to scan lowest price by symbol since", "symbol", symbol, "since", since, "err", err)
 		return nil, err
 	}
 
-	slog.Info("Highest price retrieved", "symbol", symbol, "since", since, "avg", avg)
+	slog.Info("Lowest price retrieved", "symbol", symbol, "since", since, "avg", avg)
 	return &domain.AggregatedResponse{
 		Pair:      pair,
 		Exchange:  exchange,
@@ -115,14 +115,14 @@ func (a *ApiAdapter) QueryHighestPriceSince(symbol string, since time.Time) (*do
 	}, nil
 }
 
-func (a *ApiAdapter) QueryHighestSinceByExchange(exchange, symbol string, since time.Time) (*domain.AggregatedResponse, error) {
-	slog.Info("Querying highest price by exchange, symbol, and since", "exchange", exchange, "symbol", symbol, "since", since.Format(time.RFC3339))
+func (a *ApiAdapter) QueryLowestSinceByExchange(exchange, symbol string, since time.Time) (*domain.AggregatedResponse, error) {
+	slog.Info("Querying lowest price by exchange and symbol since", "exchange", exchange, "symbol", symbol, "since", since)
 
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
 		WHERE pair_name = $1 AND exchange = $2 AND timestamp >= $3
-		ORDER BY average_price DESC
+		ORDER BY average_price ASC
 		LIMIT 1
 	`, symbol, exchange, since)
 
@@ -133,14 +133,14 @@ func (a *ApiAdapter) QueryHighestSinceByExchange(exchange, symbol string, since 
 	err := row.Scan(&pair, &exchange, &ts, &avg, &min, &max)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			slog.Warn("No highest price found for exchange, symbol, and period", "exchange", exchange, "symbol", symbol, "since", since)
+			slog.Warn("No lowest price found for exchange, symbol, and period", "exchange", exchange, "symbol", symbol, "since", since)
 			return nil, nil
 		}
-		slog.Error("Failed to scan highest price", "exchange", exchange, "symbol", symbol, "since", since, "err", err)
+		slog.Error("Failed to scan lowest price by exchange and symbol since", "exchange", exchange, "symbol", symbol, "since", since, "err", err)
 		return nil, err
 	}
 
-	slog.Info("Highest price retrieved", "exchange", exchange, "symbol", symbol, "avg", avg)
+	slog.Info("Lowest price retrieved", "exchange", exchange, "symbol", symbol, "since", since, "avg", avg)
 	return &domain.AggregatedResponse{
 		Pair:      pair,
 		Exchange:  exchange,

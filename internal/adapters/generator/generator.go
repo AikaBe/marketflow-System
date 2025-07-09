@@ -2,7 +2,7 @@ package generator
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"marketflow/internal/domain"
 	"math/rand"
 	"time"
@@ -18,7 +18,7 @@ func StartTestGenerators(ctx context.Context, out chan<- domain.PriceUpdate) {
 }
 
 func generateForExchange(ctx context.Context, exchange string, out chan<- domain.PriceUpdate) {
-	log.Printf("[%s] [TEST MODE] Generator started", exchange)
+	slog.Info("Test generator started", "exchange", exchange)
 
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
@@ -26,16 +26,25 @@ func generateForExchange(ctx context.Context, exchange string, out chan<- domain
 	for {
 		select {
 		case <-ctx.Done():
-			log.Printf("[%s] [TEST MODE] Generator stopped", exchange)
+			slog.Warn("Test generator stopped", "exchange", exchange)
 			return
-		case <-ticker.C:
+
+		case t := <-ticker.C:
 			for _, pair := range testPairs {
 				price := rand.Float64()*100 + 1
-				out <- domain.PriceUpdate{
+
+				update := domain.PriceUpdate{
 					Symbol:    pair,
 					Price:     price,
-					Timestamp: time.Now().Unix(),
+					Timestamp: t.Unix(),
 					Exchange:  exchange,
+				}
+
+				select {
+				case out <- update:
+					slog.Debug("Generated test price", "exchange", exchange, "pair", pair, "price", price)
+				default:
+					slog.Warn("Output channel full, price dropped", "exchange", exchange, "pair", pair)
 				}
 			}
 		}

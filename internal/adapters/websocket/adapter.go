@@ -3,7 +3,7 @@ package websocket
 import (
 	"bufio"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"marketflow/internal/domain"
 	"net"
 	"time"
@@ -15,26 +15,49 @@ type Ticker struct {
 	Timestamp int64   `json:"timestamp"`
 }
 
-// Fan-In
+// Fan-In pattern
 func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 	for {
+		slog.Info("Connecting to exchange",
+			"exchange", name,
+			"address", address,
+		)
+
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
-			log.Printf("[%s] Error connecting to %s: %v", name, address, err)
+			slog.Error("Connection failed",
+				"exchange", name,
+				"address", address,
+				"err", err,
+			)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		log.Printf("[%s] Connected to %s", name, address)
-		scanner := bufio.NewScanner(conn)
+		slog.Info("Successfully connected",
+			"exchange", name,
+			"address", address,
+		)
 
+		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			var t Ticker
 			line := scanner.Text()
 			if err := json.Unmarshal([]byte(line), &t); err != nil {
-				log.Printf("[%s] Failed to parse JSON: %s | err: %v", name, line, err)
+				slog.Error("Failed to parse ticker JSON",
+					"exchange", name,
+					"raw", line,
+					"err", err,
+				)
 				continue
 			}
+
+			slog.Debug("Ticker received",
+				"exchange", name,
+				"symbol", t.Symbol,
+				"price", t.Price,
+				"timestamp", t.Timestamp,
+			)
 
 			out <- domain.PriceUpdate{
 				Symbol:    t.Symbol,
@@ -44,14 +67,25 @@ func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 			}
 		}
 
-		log.Printf("[%s] Disconnected from %s, retrying...", name, address)
+		if err := scanner.Err(); err != nil {
+			slog.Warn("Scanner error occurred",
+				"exchange", name,
+				"err", err,
+			)
+		}
+
+		slog.Warn("Connection lost, reconnecting...",
+			"exchange", name,
+			"address", address,
+		)
+
 		conn.Close()
 		time.Sleep(2 * time.Second)
 	}
 }
 
 func StartReaders(out chan<- domain.PriceUpdate) {
-	log.Println("[LIVE MODE] Starting WebSocket Readers...")
+	slog.Info("[LIVE MODE] Starting WebSocket Readers...")
 	go connectAndRead("Exchange1", "exchange1:40101", out)
 	go connectAndRead("Exchange2", "exchange2:40102", out)
 	go connectAndRead("Exchange3", "exchange3:40103", out)

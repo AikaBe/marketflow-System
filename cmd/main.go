@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
 	"marketflow/internal/app/aggregator"
@@ -19,19 +18,23 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	connStr := "host=postgres port=5432 user=market password=secret dbname=marketdb sslmode=disable"
 	pgAdapter, err := postgres.NewPostgresAdapter(connStr)
 	if err != nil {
-		log.Fatalf("Postgres error: %v", err)
+		slog.Error("Postgres connection error", "err", err)
+		os.Exit(1)
 	}
 	defer pgAdapter.Close()
 
 	apiAdapter, err := postgres.NewApiAdapter(connStr)
 	if err != nil {
-		log.Fatalf("LatestAdapter error: %v", err)
+		slog.Error("API adapter connection error", "err", err)
+		os.Exit(1)
 	}
 	defer apiAdapter.Close()
 
@@ -42,25 +45,33 @@ func main() {
 	modeManager.SetMode(ctx, mode.ModeLive)
 
 	service := aggregator.NewServiceCom(redisAdapter, pgAdapter)
-
 	service.StartRedisWorkerPool(ctx, updates, 5)
 	go service.StartAggregator(ctx)
 
 	apiService := api.NewService(apiAdapter)
+	apiHandler := handler.NewHandler(apiService, modeManager)
 
-	handler := handler.NewHandler(apiService, modeManager)
+	http.HandleFunc("/prices/latest/", apiHandler.Handle)
+	http.HandleFunc("/prices/highest/", apiHandler.Highest)
+	http.HandleFunc("/prices/lowest/", apiHandler.Lowest)
+	http.HandleFunc("/prices/average/", apiHandler.Average)
+	http.HandleFunc("/mode/test", apiHandler.SwitchToTestMode)
+	http.HandleFunc("/mode/live", apiHandler.SwitchToLiveMode)
 
-	http.HandleFunc("/prices/latest/", handler.Handle)
-	http.HandleFunc("/prices/highest/", handler.Highest)
-	http.HandleFunc("/mode/test", handler.SwitchToTestMode)
-	http.HandleFunc("/mode/live", handler.SwitchToLiveMode)
+	healthHandler := &handler.HealthHandler{
+		DB:    apiAdapter,
+		Redis: redisAdapter,
+	}
+	http.Handle("/health", healthHandler)
 
 	go func() {
-		log.Println("Starting HTTP server on :8080")
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		slog.Info("Starting HTTP server", "address", ":8080")
+		if err := http.ListenAndServe(":8080", nil); err != nil {
+			slog.Error("HTTP server failed", "err", err)
+		}
 	}()
 
-	fmt.Println("Service is running...")
+	slog.Info("Service is running")
 	<-ctx.Done()
-	fmt.Println("Shutting down...")
+	slog.Info("Shutting down")
 }

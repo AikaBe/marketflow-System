@@ -1,9 +1,61 @@
-internal/
-└── adapters/
-    └── websocket/
-        ├── interface.go  
-        └── impl/
-            ├── helpers/
-                └── helpers.go
-            ├── binance.go 
-            └── bybit.go   
+.
+├── cmd
+│   └── main.go
+├── configs
+│   └── config.yaml
+├── docker
+│   ├── Dockerfile
+│   ├── load_images.sh
+│   ├── migrations
+│   │   └── 001_create_aggregated_prices_table.sql
+│   └── tar_files
+│       ├── exchange1_amd64.tar
+│       ├── exchange1_arm64.tar
+│       ├── exchange2_amd64.tar
+│       ├── exchange2_arm64.tar
+│       ├── exchange3_amd64.tar
+│       └── exchange3_arm64.tar
+├── docker-compose.yml
+├── go.mod
+├── go.sum
+├── internal
+│   ├── adapters
+│   │   ├── generator
+│   │   │   └── generator.go
+│   │   ├── postgres
+│   │   │   ├── api_repo.go
+│   │   │   ├── average.go
+│   │   │   ├── highest.go
+│   │   │   ├── latest.go
+│   │   │   ├── lowest.go
+│   │   │   └── save_repo.go
+│   │   ├── redis
+│   │   │   └── redis_adapter.go
+│   │   └── websocket
+│   │       └── adapter.go
+│   ├── app
+│   │   ├── aggregator
+│   │   │   └── service.go
+│   │   ├── api
+│   │   │   ├── average.go
+│   │   │   ├── highest.go
+│   │   │   ├── latest.go
+│   │   │   ├── lowest.go
+│   │   │   └── service.go
+│   │   ├── mode
+│   │   │   └── manager.go
+│   │   └── repo_interface.go
+│   ├── domain
+│   │   └── model.go
+│   └── handler
+│       ├── api_handler.go
+│       ├── average.go
+│       ├── health.go
+│       ├── highest_handler.go
+│       ├── latest_handler.go
+│       ├── lowest.go
+│       └── mode_handler.go
+├── README.md
+└── struct
+
+17 directories, 41 files

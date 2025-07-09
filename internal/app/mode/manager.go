@@ -2,7 +2,8 @@ package mode
 
 import (
 	"context"
-	"log"
+	"errors"
+	"log/slog"
 	"marketflow/internal/adapters/generator"
 	"marketflow/internal/adapters/websocket"
 	"marketflow/internal/domain"
@@ -30,12 +31,19 @@ func NewModeManager(out chan<- domain.PriceUpdate) *Manager {
 	}
 }
 
-func (m *Manager) SetMode(ctx context.Context, mode Mode) {
+func (m *Manager) SetMode(ctx context.Context, mode Mode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	slog.Info("SetMode called", "requested_mode", mode)
+
+	if mode != ModeLive && mode != ModeTest {
+		slog.Error("Invalid mode value", "mode", mode)
+		return errors.New("invalid mode")
+	}
+
 	if m.cancel != nil {
-		log.Println("[MODE] Cancelling previous mode")
+		slog.Info("Cancelling previous mode", "previous_mode", m.current)
 		m.cancel()
 	}
 
@@ -45,16 +53,19 @@ func (m *Manager) SetMode(ctx context.Context, mode Mode) {
 
 	switch mode {
 	case ModeLive:
-		log.Println("[MODE] Switched to Live Mode")
+		slog.Info("Switched to Live Mode")
 		go websocket.StartReaders(m.out)
 	case ModeTest:
-		log.Println("[MODE] Switched to Test Mode")
+		slog.Info("Switched to Test Mode")
 		go generator.StartTestGenerators(newCtx, m.out)
 	}
+
+	return nil
 }
 
 func (m *Manager) GetMode() Mode {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	slog.Info("GetMode called", "current_mode", m.current)
 	return m.current
 }

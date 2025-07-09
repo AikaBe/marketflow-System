@@ -17,3 +17,7 @@ func NewApiAdapter(connStr string) (*ApiAdapter, error) {
 func (a *ApiAdapter) Close() error {
 	return a.db.Close()
 }
+
+func (a *ApiAdapter) Ping() error {
+	return a.db.Ping()
+}
