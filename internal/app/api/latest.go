@@ -1,4 +1,4 @@
-package app_impl
+package api
 
 import (
 	"errors"

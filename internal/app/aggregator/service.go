@@ -1,4 +1,4 @@
-package app_impl
+package aggregator
 
 import (
 	"context"
@@ -26,7 +26,7 @@ func (ls *ServiceCom) StartRedisWorkerPool(ctx context.Context, input <-chan dom
 				timestamp := time.Now().Unix()
 				value := fmt.Sprintf("%f", update.Price)
 				ls.redisRepo.ZAdd(ctx, key, timestamp, value)
-				go ls.redisRepo.ZRemRangeByScore(ctx, key, 0, timestamp-61)
+				_ = ls.redisRepo.ZRemRangeByScore(ctx, key, 0, timestamp-61)
 			}
 		}(i)
 	}
@@ -36,8 +36,8 @@ func (ls *ServiceCom) StartAggregator(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
-	pairs := []string{"BTCUSDT", "ETHUSDT", "DOGEUSDT", "TONUSDT", "SOLUSDT"}
-	exchanges := []string{"Exchange1", "Exchange2", "Exchange3"}
+	pairs := domain.TradingPairs
+	exchanges := domain.ExchangeNames
 
 	for {
 		select {

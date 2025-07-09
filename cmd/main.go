@@ -6,8 +6,9 @@ import (
 	"log"
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
-	"marketflow/internal/adapters/websocket"
-	"marketflow/internal/app/app_impl"
+	"marketflow/internal/app/aggregator"
+	"marketflow/internal/app/api"
+	"marketflow/internal/app/mode"
 	"marketflow/internal/domain"
 	"marketflow/internal/handler"
 	"net/http"
@@ -37,19 +38,22 @@ func main() {
 	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
 
 	updates := make(chan domain.PriceUpdate, 1000)
-	websocket.StartReaders(updates)
+	modeManager := mode.NewModeManager(updates)
+	modeManager.SetMode(ctx, mode.ModeLive)
 
-	service := app_impl.NewServiceCom(redisAdapter, pgAdapter)
+	service := aggregator.NewServiceCom(redisAdapter, pgAdapter)
 
 	service.StartRedisWorkerPool(ctx, updates, 5)
 	go service.StartAggregator(ctx)
 
-	apiService := app_impl.NewService(aggregatedAdapter)
+	apiService := api.NewService(aggregatedAdapter)
 
-	handler := handler.NewHandler(apiService)
+	handler := handler.NewHandler(apiService, modeManager)
 
 	http.HandleFunc("/prices/latest/", handler.Handle)
 	http.HandleFunc("/prices/highest/", handler.Highest)
+	http.HandleFunc("/mode/test", handler.SwitchToTestMode)
+	http.HandleFunc("/mode/live", handler.SwitchToLiveMode)
 
 	go func() {
 		log.Println("Starting HTTP server on :8080")

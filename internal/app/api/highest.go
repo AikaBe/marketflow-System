@@ -1,4 +1,4 @@
-package app_impl
+package api
 
 import (
 	"errors"
@@ -36,14 +36,12 @@ func (s *APIService) GetHighestByExchange(path string) (*domain.AggregatedRespon
 }
 
 func (s *APIService) GetHighestByPeriod(symbol string, period time.Duration) (*domain.AggregatedResponse, error) {
-
 	since := time.Now().Add(-period)
 
 	return s.repo.QueryHighestPriceSince(symbol, since)
 }
 
 func (s *APIService) QueryHighestSinceByExchange(exchange, symbol string, period time.Duration) (*domain.AggregatedResponse, error) {
-
 	since := time.Now().Add(-period)
 
 	return s.repo.QueryHighestSinceByExchange(exchange, symbol, since)

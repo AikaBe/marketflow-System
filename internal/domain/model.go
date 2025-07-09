@@ -1,5 +1,19 @@
 package domain
 
+var TradingPairs = []string{
+	"BTCUSDT",
+	"ETHUSDT",
+	"DOGEUSDT",
+	"TONUSDT",
+	"SOLUSDT",
+}
+
+var ExchangeNames = []string{
+	"Exchange1",
+	"Exchange2",
+	"Exchange3",
+}
+
 type PriceUpdate struct {
 	Symbol    string
 	Price     float64

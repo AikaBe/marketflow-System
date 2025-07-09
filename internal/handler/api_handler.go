@@ -2,17 +2,19 @@ package handler
 
 import (
 	"log"
-	"marketflow/internal/app/app_impl"
+	"marketflow/internal/app/api"
+	"marketflow/internal/app/mode"
 	"net/http"
 	"strings"
 )
 
 type Handler struct {
-	Service *app_impl.APIService
+	Service     *api.APIService
+	ModeManager *mode.Manager
 }
 
-func NewHandler(service *app_impl.APIService) *Handler {
-	return &Handler{Service: service}
+func NewHandler(service *api.APIService, mm *mode.Manager) *Handler {
+	return &Handler{Service: service, ModeManager: mm}
 }
 
 func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {

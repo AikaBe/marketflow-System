@@ -1,4 +1,4 @@
-package app_impl
+package api
 
 import "marketflow/internal/app"
 
