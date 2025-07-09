@@ -6,65 +6,57 @@ import (
 	"log"
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
-	"marketflow/internal/adapters/websocket/tar_files"
+	"marketflow/internal/adapters/websocket"
+	"marketflow/internal/app/app_impl"
+	"marketflow/internal/domain"
+	"marketflow/internal/handler"
+	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
 	_ "github.com/lib/pq"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
 	connStr := "host=postgres port=5432 user=market password=secret dbname=marketdb sslmode=disable"
 	pgAdapter, err := postgres.NewPostgresAdapter(connStr)
 	if err != nil {
-		log.Fatalf("Failed to connect to DB: %v", err)
+		log.Fatalf("Postgres error: %v", err)
 	}
-	defer func() {
-		if err := pgAdapter.Close(); err != nil {
-			log.Printf("Failed to close DB: %v", err)
-		}
-	}()
-	fmt.Println("Successfully connected to PostgreSQL")
+	defer pgAdapter.Close()
+
+	aggregatedAdapter, err := postgres.NewAggregatedAdapter(connStr)
+	if err != nil {
+		log.Fatalf("LatestAdapter error: %v", err)
+	}
+	defer aggregatedAdapter.Close()
 
 	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
-	if err := redisAdapter.Set(ctx, "health", "ok"); err != nil {
-		log.Fatalf("Redis error: %v", err)
-	}
-	fmt.Println("Successfully connected to Redis")
 
-	// // bybit := bybit.NewBybitAdapter()
-	// binance := binance.NewBinanceAdapter()
+	updates := make(chan domain.PriceUpdate, 1000)
+	websocket.StartReaders(updates)
 
-	// fmt.Println("Binance and Bybit adapters created")
+	service := app_impl.NewServiceCom(redisAdapter, pgAdapter)
 
-	// service := app.NewMarketDataService(
-	// 	// bybit,
-	// 	binance,
-	// )
+	service.StartRedisWorkerPool(ctx, updates, 5)
+	go service.StartAggregator(ctx)
 
-	// dataChan := service.Start(ctx)
+	apiService := app_impl.NewService(aggregatedAdapter)
 
-	// fmt.Println("Market data service started")
+	handler := handler.NewHandler(apiService)
 
-	// go func() {
-	// 	for data := range dataChan {
-	// 		fmt.Printf("[%s] %s: %.2f (%.2f) at %d\n",
-	// 			data.Exchange, data.Symbol, data.Price, data.Volume, data.Time)
-	// 	}
-	// }()
+	http.HandleFunc("/prices/latest/", handler.Handle)
+	http.HandleFunc("/prices/highest/", handler.Highest)
 
-	// <-ctx.Done()
-	// fmt.Println("Stopping market data service...")
-	// service.Stop()
-	// fmt.Println("Graceful shutdown")
-	tar_files.StartReaders()
+	go func() {
+		log.Println("Starting HTTP server on :8080")
+		log.Fatal(http.ListenAndServe(":8080", nil))
+	}()
 
-	// Блокируем main-поток, чтобы не выйти сразу
-	for {
-		time.Sleep(10 * time.Second)
-	}
+	fmt.Println("Service is running...")
+	<-ctx.Done()
+	fmt.Println("Shutting down...")
 }

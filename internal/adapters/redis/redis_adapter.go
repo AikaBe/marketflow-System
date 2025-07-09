@@ -2,31 +2,42 @@ package redis
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisAdapter struct {
+type Adapter struct {
 	client *redis.Client
 }
 
-func NewRedisAdapter(addr, password string, db int) *RedisAdapter {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: password,
-		DB:       db,
-	})
-	return &RedisAdapter{client: rdb}
+func NewRedisAdapter(addr, password string, db int) *Adapter {
+	return &Adapter{
+		client: redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: password,
+			DB:       db,
+		}),
+	}
 }
 
-func (r *RedisAdapter) Set(ctx context.Context, key string, value string) error {
-	return r.client.Set(ctx, key, value, 0).Err()
+func (r *Adapter) ZAdd(ctx context.Context, key string, score int64, value string) error {
+	return r.client.ZAdd(ctx, key, redis.Z{
+		Score:  float64(score),
+		Member: value,
+	}).Err()
 }
 
-func (r *RedisAdapter) Get(ctx context.Context, key string) (string, error) {
-	return r.client.Get(ctx, key).Result()
+func (r *Adapter) ZRangeByScore(ctx context.Context, key string, min, max int64) ([]string, error) {
+	return r.client.ZRangeByScore(ctx, key, &redis.ZRangeBy{
+		Min: strconv.FormatInt(min, 10),
+		Max: strconv.FormatInt(max, 10),
+	}).Result()
 }
 
-func (r *RedisAdapter) Close() error {
-	return r.client.Close()
+func (r *Adapter) ZRemRangeByScore(ctx context.Context, key string, min, max int64) error {
+	return r.client.ZRemRangeByScore(ctx, key,
+		strconv.FormatInt(min, 10),
+		strconv.FormatInt(max, 10),
+	).Err()
 }
