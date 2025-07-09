@@ -2,18 +2,18 @@ package postgres
 
 import "database/sql"
 
-type AggregatedAdapter struct {
+type ApiAdapter struct {
 	db *sql.DB
 }
 
-func NewAggregatedAdapter(connStr string) (*AggregatedAdapter, error) {
+func NewApiAdapter(connStr string) (*ApiAdapter, error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
 	}
-	return &AggregatedAdapter{db: db}, nil
+	return &ApiAdapter{db: db}, nil
 }
 
-func (a *AggregatedAdapter) Close() error {
+func (a *ApiAdapter) Close() error {
 	return a.db.Close()
 }

@@ -8,24 +8,6 @@ import (
 	"time"
 )
 
-func (h *Handler) Highest(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	parts := strings.Split(path, "/")
-
-	if len(parts) == 5 {
-		if r.URL.Query().Has("period") {
-			h.HandleHighestByPeriodByExchange(w, r)
-		} else {
-			h.HandleHighestByExchange(w, r)
-		}
-	} else {
-		if r.URL.Query().Has("period") {
-			h.HandleHighestByPeriod(w, r)
-		} else {
-			h.HandleHighestPrice(w, r)
-		}
-	}
-}
 
 func (h *Handler) HandleHighestPrice(w http.ResponseWriter, r *http.Request) {
 	symbol := strings.TrimPrefix(r.URL.Path, "/prices/highest/")

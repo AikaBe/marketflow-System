@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type AggregatedRepo interface {
+type APIRepo interface {
 	GetPriceForSymbol(symbol string) (*domain.AggregatedResponse, error)
 	GetPriceForExchange(exchange, symbol string) (*domain.AggregatedResponse, error)
 

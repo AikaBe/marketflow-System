@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (a *AggregatedAdapter) GetPriceForSymbol(symbol string) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) GetPriceForSymbol(symbol string) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
@@ -37,7 +37,7 @@ func (a *AggregatedAdapter) GetPriceForSymbol(symbol string) (*domain.Aggregated
 	}, nil
 }
 
-func (a *AggregatedAdapter) GetPriceForExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) GetPriceForExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`	SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
 		WHERE pair_name = $1 AND exchange = $2

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (a *AggregatedAdapter) GetHighestBySymbol(symbol string) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) GetHighestBySymbol(symbol string) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
@@ -37,7 +37,7 @@ func (a *AggregatedAdapter) GetHighestBySymbol(symbol string) (*domain.Aggregate
 	}, nil
 }
 
-func (a *AggregatedAdapter) GetHighestByExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) GetHighestByExchange(exchange, symbol string) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
@@ -68,7 +68,7 @@ func (a *AggregatedAdapter) GetHighestByExchange(exchange, symbol string) (*doma
 	}, nil
 }
 
-func (a *AggregatedAdapter) QueryHighestPriceSince(symbol string, since time.Time) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) QueryHighestPriceSince(symbol string, since time.Time) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices
@@ -97,7 +97,7 @@ func (a *AggregatedAdapter) QueryHighestPriceSince(symbol string, since time.Tim
 	}, nil
 }
 
-func (a *AggregatedAdapter) QueryHighestSinceByExchange(exchange, symbol string, since time.Time) (*domain.AggregatedResponse, error) {
+func (a *ApiAdapter) QueryHighestSinceByExchange(exchange, symbol string, since time.Time) (*domain.AggregatedResponse, error) {
 	row := a.db.QueryRow(`
 		SELECT pair_name, exchange, timestamp, average_price, min_price, max_price
 		FROM aggregated_prices

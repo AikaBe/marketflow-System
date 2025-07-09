@@ -29,11 +29,11 @@ func main() {
 	}
 	defer pgAdapter.Close()
 
-	aggregatedAdapter, err := postgres.NewAggregatedAdapter(connStr)
+	apiAdapter, err := postgres.NewApiAdapter(connStr)
 	if err != nil {
 		log.Fatalf("LatestAdapter error: %v", err)
 	}
-	defer aggregatedAdapter.Close()
+	defer apiAdapter.Close()
 
 	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
 
@@ -46,7 +46,7 @@ func main() {
 	service.StartRedisWorkerPool(ctx, updates, 5)
 	go service.StartAggregator(ctx)
 
-	apiService := api.NewService(aggregatedAdapter)
+	apiService := api.NewService(apiAdapter)
 
 	handler := handler.NewHandler(apiService, modeManager)
 
