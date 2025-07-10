@@ -3,10 +3,11 @@ package aggregator
 import (
 	"context"
 	"log/slog"
-	"marketflow/internal/app"
-	"marketflow/internal/domain"
 	"strconv"
 	"time"
+
+	"marketflow/internal/app"
+	"marketflow/internal/domain"
 )
 
 type ServiceCom struct {

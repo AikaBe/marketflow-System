@@ -3,8 +3,9 @@ package postgres
 import (
 	"database/sql"
 	"log/slog"
-	"marketflow/internal/domain"
 	"time"
+
+	"marketflow/internal/domain"
 )
 
 func (a *ApiAdapter) GetLowestBySymbol(symbol string) (*domain.AggregatedResponse, error) {

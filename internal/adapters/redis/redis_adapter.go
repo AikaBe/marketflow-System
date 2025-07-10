@@ -12,19 +12,17 @@ type Adapter struct {
 	client *redis.Client
 }
 
-func NewRedisAdapter(addr, password string, db int) *Adapter {
-	slog.Info("Connecting to Redis",
-		"addr", addr,
-		"db", db,
-	)
+func (a *Adapter) Close() error {
+	return a.client.Close()
+}
 
+func NewRedisAdapter(addr, password string, db int) *Adapter {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
 		DB:       db,
 	})
 
-	slog.Info("Redis client created")
 	return &Adapter{client: client}
 }
 
@@ -39,8 +37,6 @@ func (r *Adapter) Ping(ctx context.Context) error {
 }
 
 func (r *Adapter) ZAdd(ctx context.Context, key string, score int64, value string) error {
-	slog.Info("ZAdd operation", "key", key, "score", score, "value", value)
-
 	err := r.client.ZAdd(ctx, key, redis.Z{
 		Score:  float64(score),
 		Member: value,
@@ -52,8 +48,6 @@ func (r *Adapter) ZAdd(ctx context.Context, key string, score int64, value strin
 }
 
 func (r *Adapter) ZRangeByScore(ctx context.Context, key string, min, max int64) ([]string, error) {
-	slog.Info("ZRangeByScore operation", "key", key, "min", min, "max", max)
-
 	result, err := r.client.ZRangeByScore(ctx, key, &redis.ZRangeBy{
 		Min: strconv.FormatInt(min, 10),
 		Max: strconv.FormatInt(max, 10),
@@ -68,8 +62,6 @@ func (r *Adapter) ZRangeByScore(ctx context.Context, key string, min, max int64)
 }
 
 func (r *Adapter) ZRemRangeByScore(ctx context.Context, key string, min, max int64) error {
-	slog.Info("ZRemRangeByScore operation", "key", key, "min", min, "max", max)
-
 	err := r.client.ZRemRangeByScore(ctx, key,
 		strconv.FormatInt(min, 10),
 		strconv.FormatInt(max, 10),

@@ -3,8 +3,9 @@ package api
 import (
 	"errors"
 	"log/slog"
-	"marketflow/internal/domain"
 	"strings"
+
+	"marketflow/internal/domain"
 )
 
 func (s *APIService) GetAggregatedPriceForSymbol(symbol string) (*domain.AggregatedResponse, error) {

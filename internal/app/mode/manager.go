@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
+
 	"marketflow/internal/adapters/generator"
 	"marketflow/internal/adapters/websocket"
 	"marketflow/internal/domain"
-	"sync"
 )
 
 type Mode int

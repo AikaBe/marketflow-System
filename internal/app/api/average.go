@@ -3,9 +3,10 @@ package api
 import (
 	"errors"
 	"log/slog"
-	"marketflow/internal/domain"
 	"strings"
 	"time"
+
+	"marketflow/internal/domain"
 )
 
 func (s *APIService) GetAvgBySymbol(symbol string) (*domain.AggregatedResponse, error) {

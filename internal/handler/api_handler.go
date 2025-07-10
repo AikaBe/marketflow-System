@@ -1,15 +1,22 @@
 package handler
 
 import (
-	"marketflow/internal/app/api"
-	"marketflow/internal/app/mode"
+	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strings"
+
+	"marketflow/internal/app/api"
+	"marketflow/internal/app/mode"
 )
 
 type Handler struct {
 	Service     *api.APIService
 	ModeManager *mode.Manager
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
 }
 
 func NewHandler(service *api.APIService, mm *mode.Manager) *Handler {
@@ -77,4 +84,11 @@ func (h *Handler) Average(w http.ResponseWriter, r *http.Request) {
 	} else {
 		h.HandleAvgPrice(w, r)
 	}
+}
+
+func writeJSONError(w http.ResponseWriter, status int, message string) {
+	slog.Warn("Returning error", "status", status, "message", message)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(ErrorResponse{Error: message})
 }

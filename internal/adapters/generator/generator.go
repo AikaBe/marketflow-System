@@ -3,9 +3,10 @@ package generator
 import (
 	"context"
 	"log/slog"
-	"marketflow/internal/domain"
 	"math/rand"
 	"time"
+
+	"marketflow/internal/domain"
 )
 
 var testPairs = []string{"BTCUSDT", "ETHUSDT", "DOGEUSDT", "TONUSDT", "SOLUSDT"}

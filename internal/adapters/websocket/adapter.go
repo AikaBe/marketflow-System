@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"log/slog"
-	"marketflow/internal/domain"
 	"net"
 	"time"
+
+	"marketflow/internal/domain"
 )
 
 type Ticker struct {
@@ -18,11 +19,6 @@ type Ticker struct {
 // Fan-In pattern
 func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 	for {
-		slog.Info("Connecting to exchange",
-			"exchange", name,
-			"address", address,
-		)
-
 		conn, err := net.Dial("tcp", address)
 		if err != nil {
 			slog.Error("Connection failed",
@@ -33,12 +29,6 @@ func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 			time.Sleep(2 * time.Second)
 			continue
 		}
-
-		slog.Info("Successfully connected",
-			"exchange", name,
-			"address", address,
-		)
-
 		scanner := bufio.NewScanner(conn)
 		for scanner.Scan() {
 			var t Ticker
@@ -51,13 +41,6 @@ func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 				)
 				continue
 			}
-
-			slog.Debug("Ticker received",
-				"exchange", name,
-				"symbol", t.Symbol,
-				"price", t.Price,
-				"timestamp", t.Timestamp,
-			)
 
 			out <- domain.PriceUpdate{
 				Symbol:    t.Symbol,
@@ -73,12 +56,6 @@ func connectAndRead(name, address string, out chan<- domain.PriceUpdate) {
 				"err", err,
 			)
 		}
-
-		slog.Warn("Connection lost, reconnecting...",
-			"exchange", name,
-			"address", address,
-		)
-
 		conn.Close()
 		time.Sleep(2 * time.Second)
 	}

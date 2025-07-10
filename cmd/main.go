@@ -3,6 +3,11 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
 	"marketflow/internal/adapters/postgres"
 	"marketflow/internal/adapters/redis"
 	"marketflow/internal/app/aggregator"
@@ -10,9 +15,6 @@ import (
 	"marketflow/internal/app/mode"
 	"marketflow/internal/domain"
 	"marketflow/internal/handler"
-	"net/http"
-	"os"
-	"os/signal"
 
 	_ "github.com/lib/pq"
 )
@@ -39,6 +41,7 @@ func main() {
 	defer apiAdapter.Close()
 
 	redisAdapter := redis.NewRedisAdapter("redis:6379", "", 0)
+	defer redisAdapter.Close()
 
 	updates := make(chan domain.PriceUpdate, 1000)
 	modeManager := mode.NewModeManager(updates)
@@ -51,27 +54,46 @@ func main() {
 	apiService := api.NewService(apiAdapter)
 	apiHandler := handler.NewHandler(apiService, modeManager)
 
-	http.HandleFunc("/prices/latest/", apiHandler.Handle)
-	http.HandleFunc("/prices/highest/", apiHandler.Highest)
-	http.HandleFunc("/prices/lowest/", apiHandler.Lowest)
-	http.HandleFunc("/prices/average/", apiHandler.Average)
-	http.HandleFunc("/mode/test", apiHandler.SwitchToTestMode)
-	http.HandleFunc("/mode/live", apiHandler.SwitchToLiveMode)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/prices/latest/", apiHandler.Handle)
+	mux.HandleFunc("/prices/highest/", apiHandler.Highest)
+	mux.HandleFunc("/prices/lowest/", apiHandler.Lowest)
+	mux.HandleFunc("/prices/average/", apiHandler.Average)
+	mux.HandleFunc("/mode/test", apiHandler.SwitchToTestMode)
+	mux.HandleFunc("/mode/live", apiHandler.SwitchToLiveMode)
 
 	healthHandler := &handler.HealthHandler{
 		DB:    apiAdapter,
 		Redis: redisAdapter,
 	}
-	http.Handle("/health", healthHandler)
+	mux.Handle("/health", healthHandler)
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
 
 	go func() {
-		slog.Info("Starting HTTP server", "address", ":8080")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		slog.Info("Starting HTTP server", "address", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server failed", "err", err)
+			cancel()
 		}
 	}()
 
 	slog.Info("Service is running")
+
 	<-ctx.Done()
-	slog.Info("Shutting down")
+	slog.Info("Shutdown signal received")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		slog.Error("Graceful shutdown failed", "err", err)
+	} else {
+		slog.Info("HTTP server shutdown complete")
+	}
+
+	slog.Info("Application shutdown complete")
 }
