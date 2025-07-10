@@ -14,12 +14,13 @@ func (h *Handler) HandleHighestPrice(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Service.GetHighestBySymbol(symbol)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetHighestBySymbol success", "symbol", symbol)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(data)
 }
 
@@ -29,12 +30,13 @@ func (h *Handler) HandleHighestByExchange(w http.ResponseWriter, r *http.Request
 
 	data, err := h.Service.GetHighestByExchange(path)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetHighestByExchange success", "path", path)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(data)
 }
 
@@ -57,18 +59,19 @@ func (h *Handler) HandleHighestByPeriod(w http.ResponseWriter, r *http.Request) 
 
 	duration, err := time.ParseDuration(periodStr)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid period format: "+err.Error())
+		writeJSONError(w, http.StatusInternalServerError, "Invalid period format: "+err.Error())
 		return
 	}
 
 	result, err := h.Service.GetHighestByPeriod(symbol, duration)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetHighestByPeriod success", "symbol", symbol, "period", duration)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }
 
@@ -92,17 +95,18 @@ func (h *Handler) HandleHighestByPeriodByExchange(w http.ResponseWriter, r *http
 
 	duration, err := time.ParseDuration(periodStr)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid period format: "+err.Error())
+		writeJSONError(w, http.StatusInternalServerError, "Invalid period format: "+err.Error())
 		return
 	}
 
 	result, err := h.Service.QueryHighestSinceByExchange(exchange, symbol, duration)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("QueryHighestSinceByExchange success", "exchange", exchange, "symbol", symbol, "period", duration)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(result)
 }

@@ -14,12 +14,13 @@ func (h *Handler) HandleLowestPrice(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Service.GetLowestBySymbol(symbol)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetLowestBySymbol success", "symbol", symbol)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
@@ -29,12 +30,13 @@ func (h *Handler) HandleLowestByExchange(w http.ResponseWriter, r *http.Request)
 
 	data, err := h.Service.GetLowestByExchange(path)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetLowestByExchange success", "path", path)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
@@ -57,18 +59,19 @@ func (h *Handler) HandleLowestByPeriod(w http.ResponseWriter, r *http.Request) {
 
 	duration, err := time.ParseDuration(periodStr)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid period format: "+err.Error())
+		writeJSONError(w, http.StatusInternalServerError, "Invalid period format: "+err.Error())
 		return
 	}
 
 	result, err := h.Service.GetLowestByPeriod(symbol, duration)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("GetLowestByPeriod success", "symbol", symbol, "duration", duration)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(result)
 }
 
@@ -92,17 +95,18 @@ func (h *Handler) HandleLowestByPeriodByExchange(w http.ResponseWriter, r *http.
 
 	duration, err := time.ParseDuration(periodStr)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid period format: "+err.Error())
+		writeJSONError(w, http.StatusInternalServerError, "Invalid period format: "+err.Error())
 		return
 	}
 
 	result, err := h.Service.QueryLowestSinceByExchange(exchange, symbol, duration)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	slog.Info("QueryLowestSinceByExchange success", "exchange", exchange, "symbol", symbol, "duration", duration)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(result)
 }

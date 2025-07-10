@@ -19,7 +19,7 @@ func (h *Handler) HandleAvgPrice(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Service.GetAvgBySymbol(symbol)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if data == nil {
@@ -29,6 +29,7 @@ func (h *Handler) HandleAvgPrice(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Responded with average price", "symbol", symbol, "data", data)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
@@ -44,7 +45,7 @@ func (h *Handler) HandleAvgByExchange(w http.ResponseWriter, r *http.Request) {
 
 	data, err := h.Service.GetAvgByExchange(path)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if data == nil {
@@ -54,6 +55,7 @@ func (h *Handler) HandleAvgByExchange(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("Responded with average price by exchange", "data", data)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(data)
 }
 
@@ -78,13 +80,13 @@ func (h *Handler) HandleAvgByPeriodByExchange(w http.ResponseWriter, r *http.Req
 
 	duration, err := time.ParseDuration(periodStr)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, "Invalid period format: "+err.Error())
+		writeJSONError(w, http.StatusInternalServerError, "Invalid period format: "+err.Error())
 		return
 	}
 
 	result, err := h.Service.QueryAvgSinceByExchange(exchange, symbol, duration)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if result == nil {
@@ -94,5 +96,6 @@ func (h *Handler) HandleAvgByPeriodByExchange(w http.ResponseWriter, r *http.Req
 
 	slog.Info("Responded with average price by period", "exchange", exchange, "symbol", symbol, "period", duration)
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(result)
 }

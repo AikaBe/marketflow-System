@@ -17,10 +17,7 @@ func (h *Handler) SwitchToTestMode(w http.ResponseWriter, r *http.Request) {
 
 	err := h.ModeManager.SetMode(r.Context(), mode.ModeTest)
 	if err != nil {
-		slog.Warn("SwitchToTestMode failed", "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -35,10 +32,7 @@ func (h *Handler) SwitchToLiveMode(w http.ResponseWriter, r *http.Request) {
 
 	err := h.ModeManager.SetMode(r.Context(), mode.ModeLive)
 	if err != nil {
-		slog.Warn("SwitchToLiveMode failed", "error", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: err.Error()})
+		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
