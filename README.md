@@ -1,67 +1,88 @@
-MarketFlow
-MarketFlow — это система реального времени для обработки рыночных данных с использованием hexagonal architecture, написанная на Go. Приложение получает данные с симуляторов криптовалютных бирж или генерирует тестовые данные, агрегирует цены, сохраняет их в PostgreSQL и кэширует в Redis. Встроенный REST API предоставляет удобный доступ к агрегированной информации.
+# MarketFlow
 
-📐 Архитектура
-Проект реализован по принципам Hexagonal Architecture (Ports & Adapters) и разделён на следующие слои:
+MarketFlow is a real-time market data processing system built in Go using hexagonal architecture. The application collects data from cryptocurrency exchange simulators or generates test data, aggregates prices, stores them in PostgreSQL, and caches them in Redis. A built-in REST API provides convenient access to aggregated information.
 
-Domain Layer — бизнес-логика и модели.
+## 🚀 Live Demo
 
-Application Layer — обработка use-case'ов, управление потоками данных.
+View Live Application
+(replace with actual link if available)
 
-Adapters:
+## 🛠️ Technologies Used
 
-HTTP Adapter — REST API (/handler)
+Backend: Go (1.21+)
 
-Storage Adapter — PostgreSQL (/repository)
+Database: PostgreSQL
 
-Cache Adapter — Redis (/cache)
+Cache: Redis
 
-Exchange Adapter — Подключение к реальным или тестовым источникам.
+Deployment: Docker, Docker Compose
 
-🏗️ Сборка
-bash
-Copy
-Edit
+## ✨ Features
+
+Real-time aggregation of market prices
+
+Live/Test modes for flexible data sources
+
+Worker pool for concurrent feed processing (5 workers per exchange)
+
+Fan-In / Fan-Out architecture for data streams
+
+Batch insertion to PostgreSQL for efficiency
+
+Automatic fallback to DB if Redis is unavailable
+
+REST API to fetch latest, highest, lowest, and average prices
+
+System health endpoint and logging
+
+## 📦 Installation
+
+Clone the repository:
+
+git clone git@github.com:AikaBe/marketflow-System.git
+cd marketflow
+
+
+Load exchange images (if using simulators):
+
 docker-compose run --rm load_images
-docker-compose build
-⚙️ Конфигурация
-Файл конфигурации (config.yaml) содержит следующие поля:
 
-yaml
-Copy
-Edit
+
+Build the project:
+
+docker-compose build
+
+
+Configure config.yaml:
+
 postgres:
-  host: localhost
-  port: 5432
-  user: marketflow
-  password: secret
-  dbname: marketflow_db
+host: localhost
+port: 5432
+user: marketflow
+password: secret
+dbname: marketflow_db
 
 redis:
-  host: localhost
-  port: 6379
-  password: ""
+host: localhost
+port: 6379
+password: ""
 
 exchanges:
-  - name: exchange1
-    host: 127.0.0.1
-    port: 40101
-  - name: exchange2
-    host: 127.0.0.1
-    port: 40102
-  - name: exchange3
-    host: 127.0.0.1
-    port: 40103
-🚀 Запуск
-bash
-Copy
-Edit
-docker-compose up
-Для live-режима используйте предоставленные образы:
+- name: exchange1
+  host: 127.0.0.1
+  port: 40101
+- name: exchange2
+  host: 127.0.0.1
+  port: 40102
+- name: exchange3
+  host: 127.0.0.1
+  port: 40103
 
-bash
-Copy
-Edit
+## 🎯 Usage
+Run the application with Docker Compose:
+docker-compose up
+
+Running exchange simulators (Live Mode):
 docker load -i exchange1_amd64.tar
 docker run -p 40101:40101 -d exchange1_amd64
 
@@ -70,103 +91,49 @@ docker run -p 40102:40102 -d exchange2_amd64
 
 docker load -i exchange3_amd64.tar
 docker run -p 40103:40103 -d exchange3_amd64
-Для тестового режима используется встроенный генератор.
 
-🔁 Поддерживаемые торговые пары
-BTCUSDT
+API Examples
 
-DOGEUSDT
+Fetch latest price for BTCUSDT:
 
-TONUSDT
+curl http://localhost:8080/prices/latest/BTCUSDT
 
-SOLUSDT
 
-ETHUSDT
+Switch to test mode:
 
-🔌 API
-📊 Market Data API
-Метод	Endpoint	Описание
-GET	/prices/latest/{symbol}	Последняя цена по символу
-GET	/prices/latest/{exchange}/{symbol}	Последняя цена по бирже
-GET	/prices/highest/{symbol}	Максимальная цена
-GET	/prices/highest/{exchange}/{symbol}	Макс. цена по бирже
-GET	/prices/highest/{symbol}?period=1m	Макс. цена за период
-GET	/prices/lowest/{symbol}	Минимальная цена
-GET	/prices/lowest/{exchange}/{symbol}	Мин. цена по бирже
-GET	/prices/lowest/{symbol}?period=1m	Мин. цена за период
-GET	/prices/average/{symbol}	Средняя цена
-GET	/prices/average/{exchange}/{symbol}	Средняя цена по бирже
-GET	/prices/average/{exchange}/{symbol}?period=1m	Средняя цена за период
+curl -X POST http://localhost:8080/mode/test
 
-⚙️ Data Mode API
-Метод	Endpoint	Описание
-POST	/mode/test	Переключиться в тестовый режим
-POST	/mode/live	Переключиться в live режим
 
-❤️ System Health
-Метод	Endpoint	Описание
-GET	/health	Текущее состояние системы
+Check system health:
 
-🧠 Особенности реализации
-Live/Test Modes: переключение на лету.
+curl http://localhost:8080/health
 
-Fan-In / Fan-Out: обработка потоков данных.
+## 🏗️ Architecture
 
-Worker Pool: 5 воркеров на каждую биржу.
+MarketFlow is built using Hexagonal Architecture (Ports & Adapters):
 
-Redis + PostgreSQL: кэш и надёжное хранилище.
+Domain Layer: business logic and models
 
-Batch Insert: вставка данных пачками.
+Application Layer: use-case processing and data flow management
 
-Fallback: если Redis не работает — сохраняем напрямую в БД.
+Adapters:
 
-Failover: авто-переподключение к источникам данных при сбое.
+HTTP Adapter (REST API)
 
-🧪 Генератор тестовых данных
-Реализован отдельный generator.go, генерирует случайные цены для всех поддерживаемых пар. Использует Generator Pattern, совместим с Fan-In архитектурой.
+Storage Adapter (PostgreSQL)
 
-💾 Хранение данных
-PostgreSQL таблица:
+Cache Adapter (Redis)
 
-sql
-Copy
-Edit
-CREATE TABLE price_stats (
-  id SERIAL PRIMARY KEY,
-  pair_name TEXT,
-  exchange TEXT,
-  timestamp TIMESTAMP,
-  average_price FLOAT,
-  min_price FLOAT,
-  max_price FLOAT
-);
-Redis:
+Exchange Adapter (Live/Test sources)
 
-Ключ: exchange:symbol
+Features include worker pool processing, fan-in/fan-out architecture, batch inserts, Redis caching with fallback, and failover for resilient data fetching.
 
-Значения: последние N цен за минуту
+## 🔮 Future Improvements
 
-🪵 Логирование
-Используется log/slog (Go 1.21+):
+Add WebSocket endpoint for live price streaming
 
-Info: успешные события (переключения, получение данных).
+Support additional trading pairs and exchanges
 
-Warn: ошибки пользователя или API.
+Add authentication and user management for API access
 
-Error: внутренние сбои.
-
-Все логи содержат контекст (symbol, exchange, duration и т.п.).
-
-✅ Критерии проверки
-✅ Собирается командой: go build -o marketflow .
-
-✅ Без внешних библиотек (кроме PostgreSQL и Redis).
-
-✅ Соответствует gofumpt.
-
-✅ Обработка всех ошибок в JSON.
-
-✅ Паники исключены.
-
-✅ Все запросы имеют HTTP-ответы с кодами и описанием ошибок.
-
+Implement historical data analytics and visualization
